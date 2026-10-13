@@ -189,18 +189,22 @@ with tab1:
         s_c1, s_c2 = st.columns(2)
         if s_c1.button("🎒 Specimen: Vintage Leather Bag", use_container_width=True):
             st.session_state["selected_img_path"] = "assets/specimens/camera_bag.jpg"
-            st.session_state["prod_desc"] = "Vintage saddle-brown handcrafted full grain leather camera satchel, brass hardware buckles, adjustable strap."
-            st.session_state["active_listing"] = None  # Clear previous result so user sees fresh generation
-            st.session_state["cv_report"] = None
-            st.toast("Selected 'Vintage Leather Bag'! Now click the primary button below to generate.", icon="🎒")
+            st.session_state["prod_desc_input"] = "Vintage saddle-brown handcrafted full grain leather camera satchel, brass hardware buckles, adjustable strap."
+            st.session_state["specimen_key"] = "vintage_leather_camera_bag"
+            st.session_state["active_listing"] = OFFLINE_SPECIMEN_CATALOG["vintage_leather_camera_bag"]
+            if os.path.exists("assets/specimens/camera_bag.jpg"):
+                st.session_state["cv_report"] = analyze_product_image_cv(Image.open("assets/specimens/camera_bag.jpg"))
+            st.toast("Loaded 'Vintage Leather Bag' specimen! Click Craft Listing below to re-run Gemma 2.", icon="🎒")
             st.rerun()
 
         if s_c2.button("🍵 Specimen: Ceramic Matcha Bowl", use_container_width=True):
             st.session_state["selected_img_path"] = "assets/specimens/matcha_bowl.jpg"
-            st.session_state["prod_desc"] = "Handmade speckled stoneware ceramic matcha chawan with pouring spout, wheel-thrown textured matte glaze."
-            st.session_state["active_listing"] = None  # Clear previous result so user sees fresh generation
-            st.session_state["cv_report"] = None
-            st.toast("Selected 'Ceramic Matcha Bowl'! Now click the primary button below to generate.", icon="🍵")
+            st.session_state["prod_desc_input"] = "Handmade speckled stoneware ceramic matcha chawan with pouring spout, wheel-thrown textured matte glaze."
+            st.session_state["specimen_key"] = "ceramic_matcha_bowl"
+            st.session_state["active_listing"] = OFFLINE_SPECIMEN_CATALOG["ceramic_matcha_bowl"]
+            if os.path.exists("assets/specimens/matcha_bowl.jpg"):
+                st.session_state["cv_report"] = analyze_product_image_cv(Image.open("assets/specimens/matcha_bowl.jpg"))
+            st.toast("Loaded 'Ceramic Matcha Bowl' specimen! Click Craft Listing below to re-run Gemma 2.", icon="🍵")
             st.rerun()
 
         uploaded_file = st.file_uploader("Upload Product Image", type=["jpg", "jpeg", "png"])
@@ -214,9 +218,14 @@ with tab1:
         elif curr_specimen_path and os.path.exists(curr_specimen_path):
             st.image(curr_specimen_path, caption=f"📷 Active Specimen: {os.path.basename(curr_specimen_path)}", width=220)
         
+        default_notes = st.session_state.get(
+            "prod_desc_input",
+            "Vintage saddle-brown handcrafted full grain leather camera satchel, brass hardware buckles, adjustable strap, minor natural patina."
+        )
         user_notes = st.text_area(
             "Product Details / Seller Notes:",
-            value=st.session_state.get("prod_desc", "Vintage saddle-brown handcrafted full grain leather camera satchel, brass hardware buckles, adjustable strap, minor natural patina."),
+            value=default_notes,
+            key="product_notes_textarea",
             height=90
         )
 
@@ -382,7 +391,7 @@ with tab3:
     st.subheader("🧪 Bayesian Multi-Armed Bandit (Thompson Sampling) Headline Optimizer")
     st.caption("Simulates 1,500 real consumer traffic impressions using Beta-Bernoulli conjugate priors to determine the winning conversion angle.")
 
-    active_b = st.session_state.get("active_listing", OFFLINE_SPECIMEN_CATALOG["vintage_leather_camera_bag"])
+    active_b = st.session_state.get("active_listing") or OFFLINE_SPECIMEN_CATALOG["vintage_leather_camera_bag"]
     
     variant_a = active_b.get("seo_title", "Vintage Leather Camera Bag Satchel | Handcrafted Rustic Messenger")
     variant_b = f"Handcrafted Artisan Heritage: {active_b.get('item_name', 'Leather Bag')} with Patina"
@@ -450,7 +459,7 @@ with tab4:
     st.subheader("🛡️ Trademark & Marketplace IP Compliance Radar")
     st.caption("Scans listing copy against high-risk registered trademarks (e.g., Velcro, Onesie, Tiffany Blue) to protect side-hustlers from store bans.")
 
-    active_for_scan = st.session_state.get("active_listing", OFFLINE_SPECIMEN_CATALOG["vintage_leather_camera_bag"])
+    active_for_scan = st.session_state.get("active_listing") or OFFLINE_SPECIMEN_CATALOG["vintage_leather_camera_bag"]
     combined_copy = f"{active_for_scan.get('seo_title', '')} {' '.join(active_for_scan.get('bullet_points', []))} {' '.join(active_for_scan.get('search_tags', []))}"
     
     test_text = st.text_area("Audit Copy for Intellectual Property Hazards:", value=combined_copy, height=110)
@@ -483,7 +492,7 @@ with tab5:
 
     loc_c1, loc_c2 = st.columns([1, 1])
     target_locale = loc_c1.selectbox("Target Global Market", ["German (DE - Etsy/eBay)", "French (FR - Etsy/eBay)", "Japanese (JP - Mercari/Rakuten)"])
-    active_data_loc = st.session_state.get("active_listing", OFFLINE_SPECIMEN_CATALOG["vintage_leather_camera_bag"])
+    active_data_loc = st.session_state.get("active_listing") or OFFLINE_SPECIMEN_CATALOG["vintage_leather_camera_bag"]
     
     current_price_usd = 42.0
 
@@ -575,7 +584,7 @@ with tab7:
     st.subheader("🎙️ 30-Second Social Commerce Voiceover Engine")
     st.caption("Generate natural, high-engagement TikTok and Instagram Reels audio scripts to drive viral traffic to your listings.")
 
-    active_listing = st.session_state.get("active_listing", OFFLINE_SPECIMEN_CATALOG["vintage_leather_camera_bag"])
+    active_listing = st.session_state.get("active_listing") or OFFLINE_SPECIMEN_CATALOG["vintage_leather_camera_bag"]
     default_script = active_listing.get("social_video_script", "Check out this amazing find! Link in bio.")
 
     video_script = st.text_area("Voiceover Marketing Script (30 Seconds):", value=default_script, height=110)
@@ -634,9 +643,10 @@ with tab8:
     st.subheader("📦 Bulk Export Catalog (Etsy / Shopify CSV Format)")
     
     # Generate CSV payload
+    active_for_export = st.session_state.get("active_listing") or OFFLINE_SPECIMEN_CATALOG["vintage_leather_camera_bag"]
     csv_rows = [
         "Title,Description,Price,Quantity,Tags,Materials",
-        f"\"{active_listing.get('seo_title', '')}\",\"{' '.join(active_listing.get('bullet_points', []))}\",{pricing_res['optimal_price']},1,\"{', '.join(active_listing.get('search_tags', []))}\",\"{', '.join(active_listing.get('detected_materials', []))}\""
+        f"\"{active_for_export.get('seo_title', '')}\",\"{' '.join(active_for_export.get('bullet_points', []))}\",{pricing_res['optimal_price']},1,\"{', '.join(active_for_export.get('search_tags', []))}\",\"{', '.join(active_for_export.get('detected_materials', []))}\""
     ]
     csv_payload = "\n".join(csv_rows)
     

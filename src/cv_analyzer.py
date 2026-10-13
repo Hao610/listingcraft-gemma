@@ -51,10 +51,29 @@ def analyze_product_image_cv(image: Image.Image) -> Dict[str, Any]:
     contrast_stddev = stat.stddev[0]
 
     # Studio lighting score (0-100)
-    # Ideal studio lighting has mean brightness between 110-190 and contrast > 45
     brightness_penalty = abs(mean_brightness - 150) / 150.0 * 50.0
     contrast_bonus = min(50.0, (contrast_stddev / 60.0) * 50.0)
     photo_quality_score = int(max(30, min(98, 100 - brightness_penalty + (contrast_bonus - 25))))
+
+    # 5. Subject fill coverage & background clutter heuristic
+    # Convert small image to luminance and estimate subject vs. background separation
+    gray_arr = np.array(img_small.convert("L"))
+    bg_sample = np.median(gray_arr[0:10, :])  # Top edge assumed ambient background
+    subject_mask = np.abs(gray_arr - bg_sample) > 25
+    subject_fill_pct = round(float(np.mean(subject_mask)) * 100.0, 1)
+
+    # Background clutter score: standard deviation in border areas
+    border_pixels = np.concatenate([gray_arr[0:5, :].flatten(), gray_arr[-5:, :].flatten(), gray_arr[:, 0:5].flatten(), gray_arr[:, -5:].flatten()])
+    border_std = float(np.std(border_pixels))
+    background_clutter_score = int(min(100, max(5, border_std * 2.2)))
+
+    # Studio framing verdict
+    if subject_fill_pct < 45.0:
+        framing_verdict = "⚠️ Subject too distant (Fill < 45%). Zoom in or crop closer to item."
+    elif subject_fill_pct > 88.0:
+        framing_verdict = "⚠️ Subject overcrowded (Fill > 88%). Add breathing room/margins."
+    else:
+        framing_verdict = "✅ Optimal Subject Staging (60%-85% Hero Framing Compliant)."
 
     return {
         "dimensions": f"{width} x {height} px",
@@ -62,9 +81,13 @@ def analyze_product_image_cv(image: Image.Image) -> Dict[str, Any]:
         "is_etsy_compliant_ratio": is_etsy_compliant_ratio,
         "is_high_res": is_high_res,
         "photo_quality_score": photo_quality_score,
+        "subject_fill_pct": subject_fill_pct,
+        "background_clutter_score": background_clutter_score,
+        "framing_verdict": framing_verdict,
         "mean_brightness": round(mean_brightness, 1),
         "dominant_palette": [
             {"hex": top_colors_hex[j], "percentage": top_percentages[j]}
             for j in range(len(top_colors_hex))
         ]
     }
+
