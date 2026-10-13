@@ -37,20 +37,19 @@ def test_offline_catalog_lookup():
     assert len(bowl["tags"]) > 3
 
 
-def test_gemma_engine_offline_execution():
-    """Verify multimodal engine returns valid schema without API keys."""
-    res = generate_listing_multimodal(
-        query_description="Handmade ceramic mug with blue glaze",
-        image=None,
-        category="Home & Ceramic Decor",
-        condition="Brand New / Handmade",
-        target_platform="Etsy",
-        api_key=""
-    )
-    assert "seo_title" in res
-    assert len(res["bullet_points"]) >= 3
-    assert len(res["search_tags"]) >= 5
-    assert "Offline" in res["engine"]
+def test_gemma_engine_missing_key_validation():
+    """Verify multimodal engine enforces real dynamic API inference and rejects missing keys."""
+    import pytest
+    with pytest.raises(ValueError) as excinfo:
+        generate_listing_multimodal(
+            query_description="Handmade ceramic mug with blue glaze",
+            image=None,
+            category="Home & Ceramic Decor",
+            condition="Brand New / Handmade",
+            target_platform="Etsy",
+            api_key=""
+        )
+    assert "API Key is missing" in str(excinfo.value)
 
 
 def test_audio_engine_fallback():

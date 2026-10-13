@@ -54,65 +54,41 @@ def generate_listing_multimodal(
     api_key: Optional[str] = None
 ) -> Dict[str, Any]:
     """
-    Analyzes item description and image using Google Gemma 2.
-    Degrades gracefully to offline deterministic catalogs if offline or API key absent.
+    Performs REAL-TIME dynamic multimodal inference via Google Gemma 2 / Gemini 1.5.
+    Zero static hardcoded templates - generates truly bespoke structured listings.
     """
-    key = api_key or os.getenv("GEMINI_API_KEY")
+    key = api_key or os.getenv("GEMINI_API_KEY", "")
 
     if not key or not key.strip():
-        # Pure offline deterministic fallback
-        template = lookup_offline_template(query_description)
-        return {
-            "item_name": template["title"],
-            "detected_materials": template["materials"],
-            "aesthetic_style": "Rustic Artisanal Heritage",
-            "seo_title": template["seo_title"],
-            "bullet_points": template["bullet_points"],
-            "search_tags": template["tags"],
-            "social_video_script": template["social_script"],
-            "target_buyer_persona": "Discerning Quality Seekers & Gift Buyers",
-            "engine": "ListingCraft Offline Local Knowledge Engine"
-        }
+        # Provide transparent prompt to user instead of pretending with hardcoded data
+        raise ValueError("Google Gemini / Gemma API Key is missing. Please configure GEMINI_API_KEY in Render Environment or enter it in the sidebar.")
 
-    try:
-        genai.configure(api_key=key.strip())
-        model = genai.GenerativeModel(
-            model_name="gemini-1.5-flash",
-            system_instruction=GEMMA_SYSTEM_PROMPT
-        )
+    genai.configure(api_key=key.strip())
+    model = genai.GenerativeModel(
+        model_name="gemini-1.5-flash",
+        system_instruction=GEMMA_SYSTEM_PROMPT
+    )
 
-        prompt_text = f"""
-Platform: {target_platform}
-Category: {category}
+    prompt_text = f"""
+Target Marketplace: {target_platform}
+Product Category: {category}
 Item Condition: {condition}
-Seller Notes / Details: "{query_description}"
+Seller Description / Visual Notes: "{query_description}"
 
-Analyze this merchandise and generate the complete high-converting product listing JSON.
+Generate a 100% bespoke, non-generic, high-converting e-commerce listing in structured JSON format matching the schema.
+Extract real product characteristics from the provided input and image.
 """
-        contents = [prompt_text]
-        if image is not None:
-            img_copy = image.copy()
-            img_copy.thumbnail((1024, 1024))
-            contents.append(img_copy)
+    contents = [prompt_text]
+    if image is not None:
+        img_copy = image.copy().convert("RGB")
+        img_copy.thumbnail((1024, 1024))
+        contents.append(img_copy)
 
-        response = model.generate_content(
-            contents,
-            generation_config={"response_mime_type": "application/json"}
-        )
-        data = json.loads(response.text)
-        data["engine"] = "Google Gemma 2 Multimodal Pipeline"
-        return data
-
-    except Exception as e:
-        template = lookup_offline_template(query_description)
-        return {
-            "item_name": template["title"],
-            "detected_materials": template["materials"],
-            "aesthetic_style": "Authentic Handcrafted",
-            "seo_title": template["seo_title"],
-            "bullet_points": template["bullet_points"],
-            "search_tags": template["tags"],
-            "social_video_script": template["social_script"],
-            "target_buyer_persona": "Eco-Conscious Collectors",
-            "engine": f"Deterministic Offline Fallback (API Note: {str(e)[:40]})"
-        }
+    response = model.generate_content(
+        contents,
+        generation_config={"response_mime_type": "application/json"}
+    )
+    
+    data = json.loads(response.text)
+    data["engine"] = "Google Gemma 2 (Live Multimodal Inference)"
+    return data
