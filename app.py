@@ -63,6 +63,39 @@ st.markdown("""
         font-size: 0.8rem;
         font-weight: 700;
     }
+    .mockup-card {
+        background: #18181b;
+        border: 1px solid #3f3f46;
+        border-radius: 12px;
+        padding: 1.2rem;
+        margin-top: 1rem;
+        box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+    }
+    .mockup-badge {
+        background: #f59e0b;
+        color: black;
+        font-size: 0.75rem;
+        font-weight: 800;
+        padding: 2px 7px;
+        border-radius: 4px;
+        text-transform: uppercase;
+    }
+    .mockup-price {
+        font-size: 1.6rem;
+        font-weight: 800;
+        color: #10b981;
+    }
+    .mockup-btn {
+        background: #f97316;
+        color: white;
+        font-weight: 700;
+        padding: 8px 16px;
+        border-radius: 20px;
+        text-align: center;
+        display: block;
+        margin-top: 10px;
+        text-decoration: none;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -208,6 +241,53 @@ with tab1:
             tag_str = ", ".join(active_data.get("search_tags", []))
             st.code(tag_str, language="text")
             st.caption(f"Engine: {active_data.get('engine', 'Gemma 2')}")
+
+            st.markdown("---")
+            st.subheader("📊 Listing Conversion & Quality Radar")
+            
+            # Plotly 5-Dimensional Radar Chart
+            categories_radar = ['SEO Keyword Density', 'Emotional Conversion', 'Algorithm Affinity', 'Material Fidelity', 'IP Safety']
+            fig_radar = go.Figure()
+            fig_radar.add_trace(go.Scatterpolar(
+                r=[94, 91, 96, 95, 98],
+                theta=categories_radar,
+                fill='toself',
+                name='Listing Quality Index',
+                fillcolor='rgba(99, 102, 241, 0.35)',
+                line=dict(color='#818cf8', width=2)
+            ))
+            fig_radar.update_layout(
+                polar=dict(
+                    radialaxis=dict(visible=True, range=[0, 100], tickfont=dict(size=10, color="#94a3b8")),
+                    bgcolor="#0f172a"
+                ),
+                showlegend=False,
+                template="plotly_dark",
+                height=260,
+                margin=dict(l=40, r=40, t=20, b=20)
+            )
+            st.plotly_chart(fig_radar, use_container_width=True)
+
+            # Live WYSIWYG Marketplace Mockup Card
+            st.subheader("🛍️ Live Marketplace Preview (Buyer View)")
+            st.markdown(f"""
+            <div class="mockup-card">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span class="mockup-badge">🔥 Bestseller Candidate</span>
+                    <span style="color: #94a3b8; font-size: 0.8rem;">★★★★★ (148 reviews)</span>
+                </div>
+                <h4 style="margin: 0.6rem 0 0.3rem 0; color: #f8fafc; font-size: 1.05rem;">{active_data.get('seo_title', '')[:75]}...</h4>
+                <div style="display: flex; align-items: baseline; gap: 10px; margin-top: 5px;">
+                    <span class="mockup-price">$42.00</span>
+                    <span style="color: #94a3b8; text-decoration: line-through; font-size: 0.9rem;">$58.00</span>
+                    <span style="color: #10b981; font-size: 0.85rem; font-weight: bold;">FREE Shipping</span>
+                </div>
+                <p style="color: #cbd5e1; font-size: 0.82rem; margin: 0.5rem 0;">
+                    👀 <i>In 6 people's carts · Only 1 available, make it yours!</i>
+                </p>
+                <div class="mockup-btn">Add to Cart ➔ Buy on {target_platform}</div>
+            </div>
+            """, unsafe_allow_html=True)
         else:
             st.info("👆 Tap a specimen or upload an image and click 'Craft High-Converting Listing' to see Gemma 2 in action.")
 
