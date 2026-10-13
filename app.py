@@ -18,6 +18,7 @@ from src.localizer import localize_listing, FX_RATES
 from src.cv_analyzer import analyze_product_image_cv
 from src.game_theory import solve_bertrand_nash_equilibrium
 from src.bandit_simulator import run_thompson_sampling_simulation
+from src.market_radar import analyze_market_category_density
 
 load_dotenv()
 
@@ -166,8 +167,9 @@ with st.sidebar:
     st.caption("🏆 Built for **Hacktoberfest 2026** DEV Challenge: Week 2 'Side Hustle'.")
 
 # Top Navigation Tabs
-tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
+tab1, tab_radar, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
     "📸 Multimodal CV & Copy Studio",
+    "📡 Quantitative Market Density Radar",
     "⚔️ Game-Theoretic Nash Pricing",
     "🧪 Bayesian Bandit A/B Simulator",
     "🛡️ Trademark & IP Risk Scanner",
@@ -259,13 +261,20 @@ with tab1:
 
         cv_data = st.session_state.get("cv_report", None)
         if cv_data:
-            with st.expander("🔬 Computer Vision Analysis (Hex Palette & Studio Compliance)", expanded=True):
-                st.caption(f"Resolution: **{cv_data['dimensions']}** | Aspect Ratio: **{cv_data['aspect_ratio']}** ({'✅ Optimal 4:3' if cv_data['is_etsy_compliant_ratio'] else '⚠️ Non-standard ratio'})")
-                st.caption(f"Lighting & Sharpness Index: **{cv_data['photo_quality_score']}/100**")
+            with st.expander("🔬 Computer Vision Analysis (Hex Palette & Studio Framing Compliance)", expanded=True):
+                st.caption(f"Resolution: **{cv_data['dimensions']}** | Aspect Ratio: **{cv_data['aspect_ratio']}** ({'✅ Optimal 4:3' if cv_data.get('is_etsy_compliant_ratio') else '⚠️ Non-standard ratio'})")
+                
+                # Framing and Quality metrics
+                q_c1, q_c2, q_c3 = st.columns(3)
+                q_c1.metric("Studio Lighting Index", f"{cv_data.get('photo_quality_score', 85)}/100")
+                q_c2.metric("Subject Frame Fill", f"{cv_data.get('subject_fill_pct', 72)}%")
+                q_c3.metric("Edge Clutter Index", f"{cv_data.get('background_clutter_score', 15)}/100")
+                
+                st.info(f"📐 **Framing Verdict**: {cv_data.get('framing_verdict', '✅ Optimal Subject Staging (Hero Framing Compliant)')}")
                 
                 # Show dominant color swatches
-                pal_cols = st.columns(len(cv_data["dominant_palette"]))
-                for idx, pal in enumerate(cv_data["dominant_palette"]):
+                pal_cols = st.columns(len(cv_data.get("dominant_palette", [])))
+                for idx, pal in enumerate(cv_data.get("dominant_palette", [])):
                     pal_cols[idx].markdown(f"""
                     <div style="background:{pal['hex']}; height:32px; border-radius:6px; border:1px solid #64748b; margin-bottom:4px;"></div>
                     <div style="font-size:10px; text-align:center; color:#94a3b8;">{pal['hex']}<br>{pal['percentage']}%</div>
@@ -337,6 +346,49 @@ with tab1:
             """, unsafe_allow_html=True)
         else:
             st.info("👆 Tap a specimen or upload an image and click 'Craft High-Converting Listing' to see Gemma 2 in action.")
+
+# ----------------- TAB: Quantitative Market Density Radar -----------------
+with tab_radar:
+    st.subheader("📡 Category Price Density & Blue-Ocean Supply Void Radar")
+    st.caption("Analyzes the macro distribution of competing sellers (N=60 market rivals) to discover uncrowded pricing voids.")
+
+    radar_c1, radar_c2 = st.columns([1, 1.2])
+    with radar_c1:
+        st.markdown("##### 🔍 Category Benchmark Settings")
+        test_price = st.slider("Your Target Listing Price ($)", 10.0, 150.0, 48.0, step=2.0)
+        
+        m_radar = analyze_market_category_density(product_category, user_price=test_price)
+        
+        r_m1, r_m2 = st.columns(2)
+        r_m1.metric("Category Median Price", f"${m_radar['median_price']:.2f}")
+        r_m2.metric("Nearby Active Rivals", f"{m_radar['nearby_rivals_in_range']} Sellers")
+        
+        st.info(f"📊 **Market Saturation Status**: **{m_radar['saturation_level']}**")
+        st.success(f"🎯 **Arbitrage Supply Gap Recommendation**: **${m_radar['supply_gap_recommended_price']:.2f}** (Vacuum Zone: ${m_radar['supply_gap_range'][0]:.2f} - ${m_radar['supply_gap_range'][1]:.2f})")
+
+    with radar_c2:
+        st.markdown("##### 📈 Price Density Distribution (Red vs. Blue Ocean)")
+        hist_bins = m_radar["density_histogram"]["bins"]
+        hist_counts = m_radar["density_histogram"]["counts"]
+        
+        bin_labels = [f"${hist_bins[i]:.0f}-${hist_bins[i+1]:.0f}" for i in range(len(hist_counts))]
+        
+        fig_density = go.Figure()
+        fig_density.add_trace(go.Bar(
+            x=bin_labels,
+            y=hist_counts,
+            name="Competitor Distribution Count",
+            marker_color=["#ef4444" if c >= 10 else ("#10b981" if c <= 3 else "#6366f1") for c in hist_counts]
+        ))
+        fig_density.update_layout(
+            template="plotly_dark",
+            title=f"{product_category} Market Density (Green = Blue Ocean Void)",
+            xaxis_title="Price Tiers ($)",
+            yaxis_title="Active Rival Count",
+            height=280,
+            margin=dict(l=30, r=30, t=40, b=30)
+        )
+        st.plotly_chart(fig_density, use_container_width=True)
 
 # ----------------- TAB 2: Game-Theoretic Nash Pricing -----------------
 with tab2:
