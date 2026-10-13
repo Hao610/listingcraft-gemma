@@ -80,5 +80,37 @@ def test_cross_border_localizer():
     from src.localizer import localize_listing
     de_res = localize_listing("Vintage Leather Bag", ["Quality leather"], 50.0, "German (DE)", api_key="")
     assert de_res["currency"] == "EUR"
-    assert de_res["local_price"] == 46.0  # 50 * 0.92
+    assert de_res["local_price"] == 46.0
     assert len(de_res["translated_bullets"]) > 0
+
+
+def test_cv_analyzer():
+    """Verify computer vision color quantization and aspect ratio checks."""
+    from src.cv_analyzer import analyze_product_image_cv
+    from PIL import Image
+    test_img = Image.new("RGB", (1200, 900), color=(140, 90, 60))
+    res = analyze_product_image_cv(test_img)
+    assert res["aspect_ratio"] == 1.33
+    assert res["is_etsy_compliant_ratio"] is True
+    assert len(res["dominant_palette"]) > 0
+
+
+def test_game_theory_nash_pricing():
+    """Verify Bertrand-Nash equilibrium pricing solver."""
+    from src.game_theory import solve_bertrand_nash_equilibrium
+    nash = solve_bertrand_nash_equilibrium(our_cost=15.0, competitor_prices=[35.0, 45.0, 60.0])
+    assert nash["nash_equilibrium_price"] > 20.0
+    assert nash["expected_market_share_pct"] > 0.0
+    assert nash["aggressive_price"] < nash["artisan_premium_price"]
+
+
+def test_bandit_simulator():
+    """Verify Bayesian Thompson Sampling Multi-Armed Bandit simulation."""
+    from src.bandit_simulator import run_thompson_sampling_simulation
+    sim = run_thompson_sampling_simulation(
+        variants=[{"label": "A", "text": "SEO"}, {"label": "B", "text": "Story"}],
+        total_impressions=500
+    )
+    assert sim["total_simulated_impressions"] == 500
+    assert len(sim["arm_results"]) == 2
+    assert sim["champion_win_probability"] > 0.0

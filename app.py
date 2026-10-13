@@ -15,6 +15,9 @@ from src.audio_engine import synthesize_marketing_audio
 from src.catalog_db import OFFLINE_SPECIMEN_CATALOG
 from src.compliance_scanner import scan_trademark_compliance
 from src.localizer import localize_listing, FX_RATES
+from src.cv_analyzer import analyze_product_image_cv
+from src.game_theory import solve_bertrand_nash_equilibrium
+from src.bandit_simulator import run_thompson_sampling_simulation
 
 load_dotenv()
 
@@ -163,8 +166,10 @@ with st.sidebar:
     st.caption("🏆 Built for **Hacktoberfest 2026** DEV Challenge: Week 2 'Side Hustle'.")
 
 # Top Navigation Tabs
-tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
-    "📸 Multimodal Listing Generator",
+tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
+    "📸 Multimodal CV & Copy Studio",
+    "⚔️ Game-Theoretic Nash Pricing",
+    "🧪 Bayesian Bandit A/B Simulator",
     "🛡️ Trademark & IP Risk Scanner",
     "🌐 Cross-Border Multi-Language Hub",
     "📈 TabPFN Dynamic Pricing & Elasticity",
@@ -212,6 +217,23 @@ with tab1:
 
             if loaded_image:
                 st.image(loaded_image, caption="Inspected Product Visual Specimen", width=280)
+                # Computer Vision Feature Extraction
+                cv_report = analyze_product_image_cv(loaded_image)
+                st.session_state["cv_report"] = cv_report
+
+        cv_data = st.session_state.get("cv_report", None)
+        if cv_data:
+            with st.expander("🔬 Computer Vision Analysis (Hex Palette & Studio Compliance)"):
+                st.caption(f"Resolution: **{cv_data['dimensions']}** | Aspect Ratio: **{cv_data['aspect_ratio']}** ({'✅ Optimal 4:3' if cv_data['is_etsy_compliant_ratio'] else '⚠️ Non-standard ratio'})")
+                st.caption(f"Lighting & Sharpness Index: **{cv_data['photo_quality_score']}/100**")
+                
+                # Show dominant color swatches
+                pal_cols = st.columns(len(cv_data["dominant_palette"]))
+                for idx, pal in enumerate(cv_data["dominant_palette"]):
+                    pal_cols[idx].markdown(f"""
+                    <div style="background:{pal['hex']}; height:32px; border-radius:6px; border:1px solid #64748b; margin-bottom:4px;"></div>
+                    <div style="font-size:10px; text-align:center; color:#94a3b8;">{pal['hex']}<br>{pal['percentage']}%</div>
+                    """, unsafe_allow_html=True)
 
             with st.spinner("Analyzing visual craftsmanship via Google Gemma 2..."):
                 listing_data = generate_listing_multimodal(
@@ -291,8 +313,117 @@ with tab1:
         else:
             st.info("👆 Tap a specimen or upload an image and click 'Craft High-Converting Listing' to see Gemma 2 in action.")
 
-# ----------------- TAB 2: Trademark & IP Risk Scanner -----------------
+# ----------------- TAB 2: Game-Theoretic Nash Pricing -----------------
 with tab2:
+    st.subheader("⚔️ Game-Theoretic Competitor Scraping & Bertrand-Nash Equilibrium Engine")
+    st.caption("Solves for optimal price equilibria against competing listings using Bertrand differentiated oligopoly modeling.")
+
+    gt_c1, gt_c2 = st.columns([1, 1])
+    with gt_c1:
+        st.markdown("##### 🎯 Competitor Market Price Survey")
+        st.caption("Active rival listings discovered in the same category:")
+        comp_p1 = st.number_input("Rival Seller A (Budget Challenger, $)", min_value=5.0, value=34.0, step=1.0)
+        comp_p2 = st.number_input("Rival Seller B (Mid-Market Bestseller, $)", min_value=5.0, value=48.0, step=1.0)
+        comp_p3 = st.number_input("Rival Seller C (Premium Artisan Brand, $)", min_value=5.0, value=65.0, step=1.0)
+        
+        solve_btn = st.button("🧮 Compute Nash Equilibrium Solution", type="primary", use_container_width=True)
+
+    with gt_c2:
+        st.markdown("##### 🏆 Equilibrium Strategy Readout")
+        nash_res = solve_bertrand_nash_equilibrium(
+            our_cost=sourcing_cost,
+            competitor_prices=[comp_p1, comp_p2, comp_p3]
+        )
+        
+        n_m1, n_m2, n_m3 = st.columns(3)
+        n_m1.metric("Nash Equilibrium Price", f"${nash_res['nash_equilibrium_price']:.2f}", help="Optimal risk-neutral expected profit price")
+        n_m2.metric("Market Capture Share", f"{nash_res['expected_market_share_pct']}%", help="Predicted choice probability under logit discrete choice")
+        n_m3.metric("Competitor Mean", f"${nash_res['competitor_mean']:.2f}")
+
+        st.info(f"💡 **Game-Theoretic Verdict**: {nash_res['strategy_recommendation']}")
+        
+        # Dual Strategy Cards
+        st.markdown(f"""
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:10px;">
+            <div style="background:#0f172a; padding:10px; border-radius:8px; border-left:3px solid #f59e0b;">
+                <b style="color:#f59e0b;">Aggressive Undercutting:</b><br>
+                <span style="font-size:1.1rem; font-weight:700;">${nash_res['aggressive_price']:.2f}</span><br>
+                <small style="color:#94a3b8;">Max sales velocity</small>
+            </div>
+            <div style="background:#0f172a; padding:10px; border-radius:8px; border-left:3px solid #8b5cf6;">
+                <b style="color:#8b5cf6;">Artisanal Premium:</b><br>
+                <span style="font-size:1.1rem; font-weight:700;">${nash_res['artisan_premium_price']:.2f}</span><br>
+                <small style="color:#94a3b8;">Max brand prestige</small>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+# ----------------- TAB 3: Bayesian Bandit A/B Simulator -----------------
+with tab3:
+    st.subheader("🧪 Bayesian Multi-Armed Bandit (Thompson Sampling) Headline Optimizer")
+    st.caption("Simulates 1,500 real consumer traffic impressions using Beta-Bernoulli conjugate priors to determine the winning conversion angle.")
+
+    active_b = st.session_state.get("active_listing", OFFLINE_SPECIMEN_CATALOG["vintage_leather_camera_bag"])
+    
+    variant_a = active_b.get("seo_title", "Vintage Leather Camera Bag Satchel | Handcrafted Rustic Messenger")
+    variant_b = f"Handcrafted Artisan Heritage: {active_b.get('item_name', 'Leather Bag')} with Patina"
+    variant_c = f"Rare Find! Authentic {active_b.get('item_name', 'Leather Satchel')} - Fast Shipping"
+
+    b_col1, b_col2 = st.columns([1.1, 0.9])
+    with b_col1:
+        st.markdown("##### 🧬 Competing Copywriting Hypotheses")
+        h_a = st.text_input("Arm A (SEO Keyword Focus):", value=variant_a)
+        h_b = st.text_input("Arm B (Emotional Storytelling):", value=variant_b)
+        h_c = st.text_input("Arm C (Scarcity & Urgency):", value=variant_c)
+        
+        sim_impressions = st.slider("Simulated Shopper Traffic (Impressions)", 500, 5000, 1500, step=250)
+        run_sim_btn = st.button("🚀 Run Thompson Sampling Simulation", type="primary", use_container_width=True)
+
+    with b_col2:
+        st.markdown("##### 📊 Posterior Convergence & Traffic Allocation")
+        bandit_res = run_thompson_sampling_simulation(
+            variants=[
+                {"label": "Arm A (SEO Focus)", "text": h_a},
+                {"label": "Arm B (Emotional Story)", "text": h_b},
+                {"label": "Arm C (Scarcity/Urgent)", "text": h_c}
+            ],
+            total_impressions=sim_impressions
+        )
+        
+        st.success(f"🏆 Champion: **{bandit_res['champion_variant']}** ({bandit_res['champion_win_probability']}% Win Probability)")
+        
+        # Plotly bar chart for allocated traffic & posterior CTR
+        arms = [r["variant_label"] for r in bandit_res["arm_results"]]
+        pulls = [r["allocated_traffic"] for r in bandit_res["arm_results"]]
+        ctrs = [r["posterior_ctr_pct"] for r in bandit_res["arm_results"]]
+
+        fig_b = go.Figure()
+        fig_b.add_trace(go.Bar(
+            x=arms,
+            y=pulls,
+            name="Traffic Allocation (Impressions)",
+            marker_color="#6366f1"
+        ))
+        fig_b.add_trace(go.Scatter(
+            x=arms,
+            y=ctrs,
+            name="Posterior CTR (%)",
+            mode="lines+markers",
+            yaxis="y2",
+            line=dict(color="#10b981", width=3)
+        ))
+        fig_b.update_layout(
+            template="plotly_dark",
+            yaxis=dict(title="Allocated Impressions"),
+            yaxis2=dict(title="Simulated CTR (%)", overlaying="y", side="right"),
+            height=280,
+            margin=dict(l=30, r=30, t=30, b=30),
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+        )
+        st.plotly_chart(fig_b, use_container_width=True)
+
+# ----------------- TAB 4: Trademark & IP Risk Scanner -----------------
+with tab4:
     st.subheader("🛡️ Trademark & Marketplace IP Compliance Radar")
     st.caption("Scans listing copy against high-risk registered trademarks (e.g., Velcro, Onesie, Tiffany Blue) to protect side-hustlers from store bans.")
 
@@ -321,8 +452,8 @@ with tab2:
                 st.markdown(f"- **Recommended Safe Replacement**: `{viol['safe_replacement']}`")
                 st.caption("Using this brand name without licensing can trigger automated DMCA takedowns.")
 
-# ----------------- TAB 3: Cross-Border Multi-Language Hub -----------------
-with tab3:
+# ----------------- TAB 5: Cross-Border Multi-Language Hub -----------------
+with tab5:
     st.subheader("🌐 Cross-Border Multi-Currency & Locale Localizer")
     st.caption("Expands your side hustle into lucrative European and Asian markets with localized titles and currency conversions.")
 
@@ -360,8 +491,8 @@ with tab3:
     else:
         st.info("👆 Select a global market and click 'Translate & Localize' to generate international sales copy.")
 
-# ----------------- TAB 4: TabPFN Dynamic Pricing & Elasticity -----------------
-with tab4:
+# ----------------- TAB 6: TabPFN Dynamic Pricing & Elasticity -----------------
+with tab6:
     st.subheader("📈 TabPFN Tabular Prior Pricing & Elasticity Model")
     st.caption("Calculates optimal velocity price, clearance floor, and net margins based on market tabular distributions.")
 
@@ -415,8 +546,8 @@ with tab4:
     st.plotly_chart(fig, use_container_width=True)
     st.info(f"💡 **Pricing Rationale**: {pricing_res['pricing_rationale']} (Premium Ceiling: **${pricing_res['premium_price']:.2f}** | Clearance Floor: **${pricing_res['clearance_floor']:.2f}**)")
 
-# ----------------- TAB 5: Social Video Voiceover (TikTok/Reels) -----------------
-with tab5:
+# ----------------- TAB 7: Social Video Voiceover (TikTok/Reels) -----------------
+with tab7:
     st.subheader("🎙️ 30-Second Social Commerce Voiceover Engine")
     st.caption("Generate natural, high-engagement TikTok and Instagram Reels audio scripts to drive viral traffic to your listings.")
 
@@ -450,8 +581,8 @@ with tab5:
             </script>
             """, height=0)
 
-# ----------------- TAB 6: Reseller ROI & CSV Bulk Exporter -----------------
-with tab6:
+# ----------------- TAB 8: Reseller ROI & CSV Bulk Exporter -----------------
+with tab8:
     st.subheader("💼 Side Hustle Growth & CSV Bulk Exporter")
     st.caption("Compare solo manual listing hours vs. ListingCraft AI throughput, and export official Etsy/Shopify bulk upload CSVs.")
 
