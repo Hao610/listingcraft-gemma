@@ -64,10 +64,15 @@ def generate_listing_multimodal(
         raise ValueError("Google Gemini / Gemma API Key is missing. Please configure GEMINI_API_KEY in Render Environment or enter it in the sidebar.")
 
     genai.configure(api_key=key.strip())
-    model = genai.GenerativeModel(
-        model_name="gemini-1.5-flash",
-        system_instruction=GEMMA_SYSTEM_PROMPT
-    )
+    
+    # Candidate models supported by Gemini API across regions & tiers
+    candidate_models = [
+        "gemini-1.5-flash-latest",
+        "gemini-1.5-flash",
+        "gemini-1.5-pro-latest",
+        "gemini-1.5-pro",
+        "gemini-pro"
+    ]
 
     prompt_text = f"""
 Target Marketplace: {target_platform}
@@ -84,11 +89,22 @@ Extract real product characteristics from the provided input and image.
         img_copy.thumbnail((1024, 1024))
         contents.append(img_copy)
 
-    response = model.generate_content(
-        contents,
-        generation_config={"response_mime_type": "application/json"}
-    )
-    
-    data = json.loads(response.text)
-    data["engine"] = "Google Gemma 2 (Live Multimodal Inference)"
-    return data
+    last_err = None
+    for model_name in candidate_models:
+        try:
+            model = genai.GenerativeModel(
+                model_name=model_name,
+                system_instruction=GEMMA_SYSTEM_PROMPT
+            )
+            response = model.generate_content(
+                contents,
+                generation_config={"response_mime_type": "application/json"}
+            )
+            data = json.loads(response.text)
+            data["engine"] = f"Google Gemma 2 / {model_name} (Live Inference)"
+            return data
+        except Exception as err:
+            last_err = err
+            continue
+
+    raise RuntimeError(f"All candidate models failed. Last error: {last_err}")
