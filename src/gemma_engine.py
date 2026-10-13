@@ -65,14 +65,33 @@ def generate_listing_multimodal(
 
     genai.configure(api_key=key.strip())
     
-    # Candidate models supported by Gemini API across regions & tiers
-    candidate_models = [
-        "gemini-1.5-flash-latest",
+    # Dynamically query exactly which models this specific API key is authorized to call
+    available_models = []
+    try:
+        for m in genai.list_models():
+            if "generateContent" in getattr(m, "supported_generation_methods", []):
+                clean_name = m.name.replace("models/", "")
+                available_models.append(clean_name)
+    except Exception:
+        pass
+
+    priority_candidates = [
+        "gemini-2.0-flash",
         "gemini-1.5-flash",
-        "gemini-1.5-pro-latest",
+        "gemini-1.5-flash-latest",
+        "gemini-1.5-flash-001",
+        "gemini-1.5-flash-002",
         "gemini-1.5-pro",
+        "gemini-1.5-pro-latest",
         "gemini-pro"
     ]
+
+    if available_models:
+        candidate_models = [m for m in priority_candidates if m in available_models]
+        if not candidate_models:
+            candidate_models = available_models
+    else:
+        candidate_models = priority_candidates
 
     prompt_text = f"""
 Target Marketplace: {target_platform}
@@ -101,10 +120,10 @@ Extract real product characteristics from the provided input and image.
                 generation_config={"response_mime_type": "application/json"}
             )
             data = json.loads(response.text)
-            data["engine"] = f"Google Gemma 2 / {model_name} (Live Inference)"
+            data["engine"] = f"Google AI / {model_name} (Live Multimodal)"
             return data
         except Exception as err:
             last_err = err
             continue
 
-    raise RuntimeError(f"All candidate models failed. Last error: {last_err}")
+    raise RuntimeError(f"Attempted models {candidate_models[:5]}. Error: {last_err}")
