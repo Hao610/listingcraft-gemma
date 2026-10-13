@@ -190,21 +190,17 @@ with tab1:
         if s_c1.button("🎒 Specimen: Vintage Leather Bag", use_container_width=True):
             st.session_state["selected_img_path"] = "assets/specimens/camera_bag.jpg"
             st.session_state["prod_desc"] = "Vintage saddle-brown handcrafted full grain leather camera satchel, brass hardware buckles, adjustable strap."
-            st.session_state["active_listing"] = OFFLINE_SPECIMEN_CATALOG["vintage_leather_camera_bag"]
-            # Auto-run CV
-            if os.path.exists("assets/specimens/camera_bag.jpg"):
-                st.session_state["cv_report"] = analyze_product_image_cv(Image.open("assets/specimens/camera_bag.jpg"))
-            st.toast("Loaded 'Vintage Leather Bag' specimen!", icon="🎒")
+            st.session_state["active_listing"] = None  # Clear previous result so user sees fresh generation
+            st.session_state["cv_report"] = None
+            st.toast("Selected 'Vintage Leather Bag'! Now click the primary button below to generate.", icon="🎒")
             st.rerun()
 
         if s_c2.button("🍵 Specimen: Ceramic Matcha Bowl", use_container_width=True):
             st.session_state["selected_img_path"] = "assets/specimens/matcha_bowl.jpg"
             st.session_state["prod_desc"] = "Handmade speckled stoneware ceramic matcha chawan with pouring spout, wheel-thrown textured matte glaze."
-            st.session_state["active_listing"] = OFFLINE_SPECIMEN_CATALOG["ceramic_matcha_bowl"]
-            # Auto-run CV
-            if os.path.exists("assets/specimens/matcha_bowl.jpg"):
-                st.session_state["cv_report"] = analyze_product_image_cv(Image.open("assets/specimens/matcha_bowl.jpg"))
-            st.toast("Loaded 'Ceramic Matcha Bowl' specimen!", icon="🍵")
+            st.session_state["active_listing"] = None  # Clear previous result so user sees fresh generation
+            st.session_state["cv_report"] = None
+            st.toast("Selected 'Ceramic Matcha Bowl'! Now click the primary button below to generate.", icon="🍵")
             st.rerun()
 
         uploaded_file = st.file_uploader("Upload Product Image", type=["jpg", "jpeg", "png"])
@@ -265,7 +261,7 @@ with tab1:
                     <div style="font-size:10px; text-align:center; color:#94a3b8;">{pal['hex']}<br>{pal['percentage']}%</div>
                     """, unsafe_allow_html=True)
 
-        active_data = st.session_state.get("active_listing", OFFLINE_SPECIMEN_CATALOG["vintage_leather_camera_bag"])
+        active_data = st.session_state.get("active_listing", None)
         if active_data:
             st.markdown(f"**Item**: `{active_data.get('item_name', 'Artisan Item')}`")
             st.markdown(f"**Aesthetic Style**: `{active_data.get('aesthetic_style', 'Rustic')}`")
