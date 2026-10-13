@@ -58,3 +58,27 @@ def test_audio_engine_fallback():
     audio_bytes, msg = synthesize_marketing_audio("Check out this vintage bag!", api_key=None)
     assert audio_bytes is None
     assert "browser speech synthesis" in msg
+
+
+def test_compliance_scanner():
+    """Verify trademark scanning detects prohibited commercial terms."""
+    from src.compliance_scanner import scan_trademark_compliance
+    # Clean text
+    clean_res = scan_trademark_compliance("Handcrafted leather satchel with brass zipper")
+    assert clean_res["is_clean"] is True
+    assert clean_res["compliance_score"] == 100
+
+    # Infringing text (Velcro, Onesie)
+    risky_res = scan_trademark_compliance("Cute baby onesie with velcro fasteners")
+    assert risky_res["is_clean"] is False
+    assert len(risky_res["violations"]) == 2
+    assert risky_res["compliance_score"] < 100
+
+
+def test_cross_border_localizer():
+    """Verify German/French localization and foreign exchange conversion."""
+    from src.localizer import localize_listing
+    de_res = localize_listing("Vintage Leather Bag", ["Quality leather"], 50.0, "German (DE)", api_key="")
+    assert de_res["currency"] == "EUR"
+    assert de_res["local_price"] == 46.0  # 50 * 0.92
+    assert len(de_res["translated_bullets"]) > 0

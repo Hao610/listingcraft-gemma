@@ -13,6 +13,8 @@ from src.gemma_engine import generate_listing_multimodal
 from src.pricing_oracle import predict_optimal_pricing, CATEGORY_PRIORS, CONDITION_MULTIPLIERS
 from src.audio_engine import synthesize_marketing_audio
 from src.catalog_db import OFFLINE_SPECIMEN_CATALOG
+from src.compliance_scanner import scan_trademark_compliance
+from src.localizer import localize_listing, FX_RATES
 
 load_dotenv()
 
@@ -128,11 +130,13 @@ with st.sidebar:
     st.caption("🏆 Built for **Hacktoberfest 2026** DEV Challenge: Week 2 'Side Hustle'.")
 
 # Top Navigation Tabs
-tab1, tab2, tab3, tab4 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
     "📸 Multimodal Listing Generator",
+    "🛡️ Trademark & IP Risk Scanner",
+    "🌐 Cross-Border Multi-Language Hub",
     "📈 TabPFN Dynamic Pricing & Elasticity",
     "🎙️ Social Video Voiceover (TikTok/Reels)",
-    "💼 Reseller ROI & Side Hustle Calculator"
+    "💼 Reseller ROI & CSV Exporter"
 ])
 
 # ----------------- TAB 1: Multimodal Listing Generator -----------------
@@ -207,8 +211,77 @@ with tab1:
         else:
             st.info("👆 Tap a specimen or upload an image and click 'Craft High-Converting Listing' to see Gemma 2 in action.")
 
-# ----------------- TAB 2: TabPFN Dynamic Pricing & Elasticity -----------------
+# ----------------- TAB 2: Trademark & IP Risk Scanner -----------------
 with tab2:
+    st.subheader("🛡️ Trademark & Marketplace IP Compliance Radar")
+    st.caption("Scans listing copy against high-risk registered trademarks (e.g., Velcro, Onesie, Tiffany Blue) to protect side-hustlers from store bans.")
+
+    active_for_scan = st.session_state.get("active_listing", OFFLINE_SPECIMEN_CATALOG["vintage_leather_camera_bag"])
+    combined_copy = f"{active_for_scan.get('seo_title', '')} {' '.join(active_for_scan.get('bullet_points', []))} {' '.join(active_for_scan.get('search_tags', []))}"
+    
+    test_text = st.text_area("Audit Copy for Intellectual Property Hazards:", value=combined_copy, height=110)
+    
+    col_sc1, col_sc2 = st.columns([1, 1])
+    if col_sc1.button("🔍 Scan for Trademark Infringements", type="primary", use_container_width=True):
+        st.session_state["compliance_scanned"] = True
+
+    scan_result = scan_trademark_compliance(test_text)
+    
+    m_s1, m_s2 = st.columns(2)
+    m_s1.metric("Compliance Health Score", f"{scan_result['compliance_score']}/100")
+    m_s2.metric("Policy Status", "100% CLEAN" if scan_result['is_clean'] else "RISKS DETECTED")
+
+    if scan_result["is_clean"]:
+        st.success("✅ **Zero Trademark Infringements Found**: This listing is safe for commercial publishing on Etsy, eBay, and Amazon.")
+    else:
+        st.error(f"⚠️ **Attention**: Found {len(scan_result['violations'])} restricted commercial trademarks!")
+        for viol in scan_result["violations"]:
+            with st.expander(f"🚩 Restricted Term: '{viol['flagged_term']}' ({viol['risk_level']} RISK)"):
+                st.markdown(f"- **Trademark Registered By**: `{viol['trademark_owner']}`")
+                st.markdown(f"- **Recommended Safe Replacement**: `{viol['safe_replacement']}`")
+                st.caption("Using this brand name without licensing can trigger automated DMCA takedowns.")
+
+# ----------------- TAB 3: Cross-Border Multi-Language Hub -----------------
+with tab3:
+    st.subheader("🌐 Cross-Border Multi-Currency & Locale Localizer")
+    st.caption("Expands your side hustle into lucrative European and Asian markets with localized titles and currency conversions.")
+
+    loc_c1, loc_c2 = st.columns([1, 1])
+    target_locale = loc_c1.selectbox("Target Global Market", ["German (DE - Etsy/eBay)", "French (FR - Etsy/eBay)", "Japanese (JP - Mercari/Rakuten)"])
+    active_data_loc = st.session_state.get("active_listing", OFFLINE_SPECIMEN_CATALOG["vintage_leather_camera_bag"])
+    
+    current_price_usd = 42.0
+
+    if st.button("🌍 Translate & Localize for Global Buyers", type="primary", use_container_width=True):
+        with st.spinner(f"Localizing for {target_locale}..."):
+            localized = localize_listing(
+                english_title=active_data_loc.get("seo_title", ""),
+                english_bullets=active_data_loc.get("bullet_points", []),
+                usd_price=current_price_usd,
+                target_locale=target_locale,
+                api_key=gemini_key
+            )
+            st.session_state["localized_data"] = localized
+
+    loc_active = st.session_state.get("localized_data", None)
+    if loc_active:
+        curr_symbol = "€" if loc_active["currency"] == "EUR" else ("¥" if loc_active["currency"] == "JPY" else "£")
+        st.success(f"Localized for **{loc_active['locale']}** | Converted Price: **{curr_symbol}{loc_active['local_price']} {loc_active['currency']}**")
+        
+        st.write("##### 🏷️ Localized Title:")
+        st.code(loc_active.get("translated_title", ""), language="text")
+
+        st.write("##### 📌 Culturally Adapted Bullet Points:")
+        for b in loc_active.get("translated_bullets", []):
+            st.markdown(f"- {b}")
+
+        st.write("##### 🔍 Local Search Keywords:")
+        st.code(", ".join(loc_active.get("local_tags", [])), language="text")
+    else:
+        st.info("👆 Select a global market and click 'Translate & Localize' to generate international sales copy.")
+
+# ----------------- TAB 4: TabPFN Dynamic Pricing & Elasticity -----------------
+with tab4:
     st.subheader("📈 TabPFN Tabular Prior Pricing & Elasticity Model")
     st.caption("Calculates optimal velocity price, clearance floor, and net margins based on market tabular distributions.")
 
@@ -262,8 +335,8 @@ with tab2:
     st.plotly_chart(fig, use_container_width=True)
     st.info(f"💡 **Pricing Rationale**: {pricing_res['pricing_rationale']} (Premium Ceiling: **${pricing_res['premium_price']:.2f}** | Clearance Floor: **${pricing_res['clearance_floor']:.2f}**)")
 
-# ----------------- TAB 3: Social Video Voiceover (TikTok/Reels) -----------------
-with tab3:
+# ----------------- TAB 5: Social Video Voiceover (TikTok/Reels) -----------------
+with tab5:
     st.subheader("🎙️ 30-Second Social Commerce Voiceover Engine")
     st.caption("Generate natural, high-engagement TikTok and Instagram Reels audio scripts to drive viral traffic to your listings.")
 
@@ -297,10 +370,10 @@ with tab3:
             </script>
             """, height=0)
 
-# ----------------- TAB 4: Reseller ROI & Side Hustle Calculator -----------------
-with tab4:
-    st.subheader("💼 Side Hustle Growth & ROI Simulator")
-    st.caption("Compare solo manual listing hours vs. ListingCraft AI automated throughput to project monthly side hustle earnings.")
+# ----------------- TAB 6: Reseller ROI & CSV Bulk Exporter -----------------
+with tab6:
+    st.subheader("💼 Side Hustle Growth & CSV Bulk Exporter")
+    st.caption("Compare solo manual listing hours vs. ListingCraft AI throughput, and export official Etsy/Shopify bulk upload CSVs.")
 
     calc_c1, calc_c2, calc_c3 = st.columns(3)
     monthly_items = calc_c1.slider("Monthly Sourced Items", 10, 300, 60, step=10)
@@ -308,11 +381,10 @@ with tab4:
     avg_item_cost = calc_c3.slider("Average Sourcing Cost ($)", 2.0, 100.0, sourcing_cost, step=2.0)
 
     # Manual vs AI Time savings
-    manual_hours = (monthly_items * 25.0) / 60.0  # ~25 mins per listing manually
-    ai_hours = (monthly_items * 3.0) / 60.0       # ~3 mins with ListingCraft
+    manual_hours = (monthly_items * 25.0) / 60.0
+    ai_hours = (monthly_items * 3.0) / 60.0
     hours_saved = round(manual_hours - ai_hours, 1)
 
-    # Monthly revenue & profit
     monthly_rev = monthly_items * avg_sale_price
     platform_fee_total = monthly_rev * 0.13
     sourcing_total = monthly_items * avg_item_cost
@@ -324,31 +396,35 @@ with tab4:
     r3.metric("Time Saved with AI", f"{hours_saved} Hours/Mo", f"{(hours_saved/manual_hours)*100:.0f}% Faster")
 
     st.markdown("---")
-    st.subheader("💾 Export Ready-to-Publish Listing Bundle")
-    export_payload = f"""=== LISTING DATA (Generated by ListingCraft AI) ===
+    st.subheader("📦 Bulk Export Catalog (Etsy / Shopify CSV Format)")
+    
+    # Generate CSV payload
+    csv_rows = [
+        "Title,Description,Price,Quantity,Tags,Materials",
+        f"\"{active_listing.get('seo_title', '')}\",\"{' '.join(active_listing.get('bullet_points', []))}\",{pricing_res['optimal_price']},1,\"{', '.join(active_listing.get('search_tags', []))}\",\"{', '.join(active_listing.get('detected_materials', []))}\""
+    ]
+    csv_payload = "\n".join(csv_rows)
+    
+    c_btn1, c_btn2 = st.columns(2)
+    with c_btn1:
+        st.download_button(
+            "📊 Download Marketplace Bulk CSV",
+            data=csv_payload,
+            file_name=f"listingcraft_{target_platform.lower()}_catalog.csv",
+            mime="text/csv",
+            use_container_width=True
+        )
+    with c_btn2:
+        export_text_bundle = f"""=== LISTING CRAFT EXPORT ===
 Platform: {target_platform}
-Category: {product_category}
-Condition: {product_condition}
-
-OPTIMAL PRICE: ${pricing_res['optimal_price']:.2f} (Floor: ${pricing_res['clearance_floor']:.2f} | Premium: ${pricing_res['premium_price']:.2f})
-PROJECTED NET PROFIT: ${pricing_res['net_profit']:.2f} ({pricing_res['roi_percent']}% ROI)
-
-SEO TITLE:
-{active_listing.get('seo_title', '')}
-
-BULLET POINTS:
-{chr(10).join(['- ' + b for b in active_listing.get('bullet_points', [])])}
-
-SEARCH TAGS:
-{', '.join(active_listing.get('search_tags', []))}
-
-TIKTOK / REELS SCRIPT:
-{active_listing.get('social_video_script', '')}
+Title: {active_listing.get('seo_title', '')}
+Price: ${pricing_res['optimal_price']:.2f}
+Tags: {', '.join(active_listing.get('search_tags', []))}
 """
-    st.download_button(
-        "📥 Download Listing Package (.txt)",
-        data=export_payload,
-        file_name=f"listingcraft_{target_platform.lower()}_bundle.txt",
-        mime="text/plain",
-        use_container_width=True
-    )
+        st.download_button(
+            "📝 Download Full Text Package (.txt)",
+            data=export_text_bundle,
+            file_name="listingcraft_bundle.txt",
+            mime="text/plain",
+            use_container_width=True
+        )
