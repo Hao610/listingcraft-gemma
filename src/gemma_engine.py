@@ -63,67 +63,56 @@ def generate_listing_multimodal(
         # Provide transparent prompt to user instead of pretending with hardcoded data
         raise ValueError("Google Gemini / Gemma API Key is missing. Please configure GEMINI_API_KEY in Render Environment or enter it in the sidebar.")
 
-    genai.configure(api_key=key.strip())
+    import requests
+
+    # Use direct official Google Generative Language REST API for maximum speed & strict timeout
+    # This prevents the deprecated SDK from hanging indefinitely on network or rate limits
+    clean_key = key.strip()
     
-    # Dynamically query exactly which models this specific API key is authorized to call
-    available_models = []
-    try:
-        for m in genai.list_models():
-            if "generateContent" in getattr(m, "supported_generation_methods", []):
-                clean_name = m.name.replace("models/", "")
-                available_models.append(clean_name)
-    except Exception:
-        pass
-
-    priority_candidates = [
-        "gemini-2.0-flash",
-        "gemini-1.5-flash",
-        "gemini-1.5-flash-latest",
-        "gemini-1.5-flash-001",
-        "gemini-1.5-flash-002",
-        "gemini-1.5-pro",
-        "gemini-1.5-pro-latest",
-        "gemini-pro"
-    ]
-
-    if available_models:
-        candidate_models = [m for m in priority_candidates if m in available_models]
-        if not candidate_models:
-            candidate_models = available_models
-    else:
-        candidate_models = priority_candidates
-
-    prompt_text = f"""
-Target Marketplace: {target_platform}
-Product Category: {category}
-Item Condition: {condition}
-Seller Description / Visual Notes: "{query_description}"
-
-Generate a 100% bespoke, non-generic, high-converting e-commerce listing in structured JSON format matching the schema.
-Extract real product characteristics from the provided input and image.
-"""
-    contents = [prompt_text]
+    # Priority order of active models
+    models_to_try = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.0-flash"]
+    
+    # Build parts payload
+    parts = [{"text": f"System Instructions:\n{GEMMA_SYSTEM_PROMPT}\n\nTask:\nTarget Marketplace: {target_platform}\nCategory: {category}\nCondition: {condition}\nProduct Description: {query_description}\n\nGenerate listing JSON matching the schema."}]
+    
     if image is not None:
-        img_copy = image.copy().convert("RGB")
-        img_copy.thumbnail((1024, 1024))
-        contents.append(img_copy)
+        import io
+        import base64
+        buf = io.BytesIO()
+        img_thumb = image.copy().convert("RGB")
+        img_thumb.thumbnail((800, 800))
+        img_thumb.save(buf, format="JPEG", quality=85)
+        b64_img = base64.b64encode(buf.getvalue()).decode("utf-8")
+        parts.append({
+            "inline_data": {
+                "mime_type": "image/jpeg",
+                "data": b64_img
+            }
+        })
+
+    payload = {
+        "contents": [{"parts": parts}],
+        "generationConfig": {
+            "responseMimeType": "application/json",
+            "temperature": 0.4
+        }
+    }
 
     last_err = None
-    for model_name in candidate_models:
+    for m in models_to_try:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{m}:generateContent?key={clean_key}"
         try:
-            model = genai.GenerativeModel(
-                model_name=model_name,
-                system_instruction=GEMMA_SYSTEM_PROMPT
-            )
-            response = model.generate_content(
-                contents,
-                generation_config={"response_mime_type": "application/json"}
-            )
-            data = json.loads(response.text)
-            data["engine"] = f"Google AI / {model_name} (Live Multimodal)"
-            return data
-        except Exception as err:
-            last_err = err
+            resp = requests.post(url, json=payload, headers={"Content-Type": "application/json"}, timeout=18)
+            if resp.status_code == 200:
+                resp_json = resp.json()
+                text_content = resp_json["candidates"][0]["content"]["parts"][0]["text"]
+                data = json.loads(text_content)
+                data["engine"] = f"Google Gemma / {m} (Real-time Live Inference)"
+                return data
+            else:
+                last_err = f"HTTP {resp.status_code}: {resp.text[:120]}"
+        except Exception as ex:
+            last_err = str(ex)
             continue
 
-    raise RuntimeError(f"Attempted models {candidate_models[:5]}. Error: {last_err}")
+    raise RuntimeError(f"Live AI inference failed. {last_err}")
