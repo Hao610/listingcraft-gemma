@@ -75,18 +75,42 @@ st.markdown("""
 # Sidebar Configuration
 with st.sidebar:
     st.header("⚙️ Studio Settings & Keys")
-    gemini_key = st.text_input(
-        "Google Gemini / Gemma API Key",
-        value=os.getenv("GEMINI_API_KEY", ""),
-        type="password",
-        help="Google AI Studio key for Gemma 2 Multimodal reasoning. Falls back to offline templates if blank."
-    )
-    elevenlabs_key = st.text_input(
-        "ElevenLabs API Key",
-        value=os.getenv("ELEVENLABS_API_KEY", ""),
-        type="password",
-        help="Generates 30-sec social video marketing voiceovers. Falls back to browser audio."
-    )
+    env_gemini = os.getenv("GEMINI_API_KEY", "")
+    env_eleven = os.getenv("ELEVENLABS_API_KEY", "")
+
+    if env_gemini:
+        st.success("🔒 Cloud Gemini Key: Configured & Secured")
+        user_override_gemini = st.text_input(
+            "Custom Gemini Key (Optional Override)",
+            value="",
+            type="password",
+            help="Your server key is already securely active. Leave empty to use the server key."
+        )
+        gemini_key = user_override_gemini if user_override_gemini.strip() else env_gemini
+    else:
+        gemini_key = st.text_input(
+            "Google Gemini / Gemma API Key",
+            value="",
+            type="password",
+            help="Enter your Google AI Studio key for Gemma 2. Falls back to offline mode if blank."
+        )
+
+    if env_eleven:
+        st.success("🔒 Cloud ElevenLabs Key: Configured")
+        user_override_eleven = st.text_input(
+            "Custom ElevenLabs Key (Optional Override)",
+            value="",
+            type="password",
+            help="Leave empty to use configured server key."
+        )
+        elevenlabs_key = user_override_eleven if user_override_eleven.strip() else env_eleven
+    else:
+        elevenlabs_key = st.text_input(
+            "ElevenLabs API Key (Optional)",
+            value="",
+            type="password",
+            help="Generates 30-sec social video marketing voiceovers. Falls back to browser audio."
+        )
 
     st.markdown("---")
     st.subheader("🎯 Marketplace & Unit Economics")
