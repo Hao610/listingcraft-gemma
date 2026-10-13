@@ -78,27 +78,27 @@ def generate_listing_multimodal(
             m_list = list_resp.json().get("models", [])
             for item in m_list:
                 if "generateContent" in item.get("supportedGenerationMethods", []):
-                    # extract model id e.g. "models/gemini-2.5-flash" -> "gemini-2.5-flash"
                     m_id = item.get("name", "").replace("models/", "")
-                    if m_id:
+                    # Filter out models explicitly flagged as deprecated / experimental preview
+                    if m_id and "2.5" not in m_id:
                         available_models.append(m_id)
     except Exception:
         pass
 
-    # Preferred active models in order of velocity & capability
-    preferred = [
-        "gemini-2.5-flash",
-        "gemini-2.0-flash-exp",
-        "gemini-2.0-flash-001",
+    # Standard public models guaranteed on Google AI Studio
+    standard_models = [
+        "gemini-1.5-flash",
         "gemini-1.5-flash-latest",
         "gemini-1.5-flash-001",
         "gemini-1.5-flash-002",
-        "gemini-1.5-flash",
         "gemini-1.5-pro",
-        "gemini-pro"
+        "gemini-1.5-pro-latest"
     ]
 
-    models_to_try = [m for m in preferred if m in available_models] if available_models else (available_models or preferred)
+    # Prioritize standard models that exist in available_models, then remaining available_models, then standard_models
+    matched = [m for m in standard_models if m in available_models]
+    remainder = [m for m in available_models if m not in matched]
+    models_to_try = matched + remainder if available_models else standard_models
 
     # Build parts payload
     parts = [{"text": f"System Instructions:\n{GEMMA_SYSTEM_PROMPT}\n\nTask:\nTarget Marketplace: {target_platform}\nCategory: {category}\nCondition: {condition}\nProduct Description: {query_description}\n\nGenerate listing JSON matching the schema."}]
@@ -135,10 +135,11 @@ def generate_listing_multimodal(
                 resp_json = resp.json()
                 text_content = resp_json["candidates"][0]["content"]["parts"][0]["text"]
                 data = json.loads(text_content)
-                data["engine"] = f"Google Gemma / {m} (Real-time Live Inference)"
+                data["engine"] = f"Google AI / {m} (Real-time Live Inference)"
                 return data
             else:
                 last_err = f"HTTP {resp.status_code} ({m}): {resp.text[:120]}"
+                continue
         except Exception as ex:
             last_err = str(ex)
             continue
